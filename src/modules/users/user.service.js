@@ -39,23 +39,23 @@ class UserService {
 
       if (status) query.status = status;
       if (role) query.role = role;
+
       if (search) {
-        query.$text = { $search: search };
+        const searchRegex = new RegExp(search, "i"); // 'i' for case-insensitive
+        query.$or = [
+          { firstName: searchRegex },
+          { lastName: searchRegex },
+          { email: searchRegex },
+        ];
       }
 
       const skip = (Number(page) - 1) * Number(limit);
 
-      const projection = search ? { score: { $meta: "textScore" } } : {};
-
       const [users, total] = await Promise.all([
         User.find(query)
-          .projection(projection)
           .limit(Number(limit))
           .skip(skip)
-          .sort({
-            ...(search ? { score: { $meta: "textScore" } } : {}),
-            createdAt: -1,
-          }),
+          .sort({ createdAt: -1 }),
         User.countDocuments(query),
       ]);
 
@@ -65,7 +65,7 @@ class UserService {
           page: Number(page),
           limit: Number(limit),
           total,
-          totalPages: Math.ceil(total / limit),
+          totalPages: Math.ceil(total / limit), // Math.ceil() to maximum round up
         },
       };
     } catch (error) {
