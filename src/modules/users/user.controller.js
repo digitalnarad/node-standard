@@ -97,9 +97,13 @@ export const uploadDocuments = asyncHandler(async (req, res) => {
 });
 
 export const deleteDocument = asyncHandler(async (req, res) => {
-  const { documentPath } = req.body;
+  const { documentIds } = req.body;
 
-  await userService.deleteDocument(req.user._id, documentPath);
+  if (!documentIds || documentIds.length <= 0) {
+    return API_RESPONSE.ERROR(res, 400, "No document ids provided");
+  }
+
+  await userService.deleteDocument(req.user._id, documentIds);
 
   return API_RESPONSE.SUCCESS(res, 200, "Document deleted successfully");
 });

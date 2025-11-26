@@ -257,32 +257,25 @@ class UserService {
     }
   }
 
-  async deleteDocument(userId, documentPath) {
+  async deleteDocument(userId, documentId) {
     try {
       const user = await User.findById(userId);
       if (!user) throw new ApiError(404, "User not found");
 
-      const docsToDelete = Array.isArray(documentPath)
-        ? documentPath
-        : [documentPath];
-
       // Validate all docs exist
-      const existingUrls = user.documents.map((doc) => doc.url);
-      if (!docsToDelete.every((doc) => existingUrls.includes(doc)))
+      const existingDocs = user.documents.map((doc) => doc._id.toString());
+      if (!documentId.every((doc) => existingDocs.includes(doc)))
         throw new ApiError(404, "Document not found");
 
       // Remove documents from array
-      user.documents = user.documents.filter(
-        (doc) => !docsToDelete.includes(doc.url)
-      );
-
-      // Build file paths
-      const filePaths = docsToDelete.map((doc) =>
-        path.join(process.cwd(), "public", doc)
-      );
-
-      // Delete files
-      deleteFiles(filePaths);
+      user.documents = user.documents.filter((doc) => {
+        const isDelete = documentId.includes(doc._id.toString());
+        if (isDelete) {
+          const imagePath = path.join(process.cwd(), "public", doc.url);
+          deleteFile(imagePath);
+        }
+        return !isDelete;
+      });
 
       await user.save();
     } catch (error) {
