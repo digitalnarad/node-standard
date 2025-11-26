@@ -1,12 +1,13 @@
 import express from "express";
 import * as userController from "./user.controller.js";
-import {
-  changeStatusValidation,
-  updateUserValidation,
-  userIdValidation,
-} from "./user.validation.js";
+import { updateUserValidation } from "./user.validation.js";
 import { validate } from "#src/middleware/validate.middleware.js";
 import { authenticate, authorize } from "#src/middleware/auth.middleware.js";
+import {
+  uploadMixedFields,
+  // uploadMultiple,
+  // uploadSingle,
+} from "#src/middleware/multer.middleware.js";
 
 const router = express.Router();
 
@@ -19,6 +20,36 @@ router.patch(
   validate(updateUserValidation),
   userController.updateUser
 );
+
+// Profile image routes
+router.post(
+  "/upload-profile-image",
+  // uploadSingle("profileImage", "IMAGE"),
+  uploadMixedFields([
+    {
+      name: "profileImage",
+      maxCount: 1,
+      fileType: "IMAGE",
+    },
+  ]),
+  userController.uploadProfileImage
+);
+
+router.post(
+  "/upload-documents",
+  // uploadMultiple("documents", 5, "DOCUMENT"),
+  uploadMixedFields([
+    {
+      name: "documents",
+      maxCount: 5,
+      fileType: "DOCUMENT",
+    },
+  ]),
+  userController.uploadDocuments
+);
+
+router.delete("/delete-profile-image", userController.deleteProfileImage);
+router.delete("/delete-document", userController.deleteDocument);
 
 // Admin only routes
 router.use(authorize("admin"));

@@ -1,5 +1,8 @@
 import ApiError from "#src/utils/ApiError.js";
 import User from "./user.model.js";
+import path from "path";
+import { fileURLToPath } from "url";
+import { deleteFile, deleteFiles } from "#src/middleware/multer.middleware.js";
 
 class UserService {
   async createUser(userData) {
@@ -102,6 +105,23 @@ class UserService {
         throw new ApiError(404, "User not found");
       }
 
+      // Delete profile image if exists
+      if (user.profileImage?.url) {
+        const imagePath = path.join(
+          process.cwd(),
+          "public",
+          user.profileImage.url
+        );
+        deleteFile(imagePath);
+      }
+
+      if (user.documents && user.documents?.length > 0) {
+        const documentsPath = user.documents.map((document) =>
+          path.join(process.cwd(), "public", document.url)
+        );
+        deleteFiles(documentsPath);
+      }
+
       await user.deleteOne();
       return { message: "User deleted successfully" };
     } catch (error) {
@@ -135,6 +155,136 @@ class UserService {
       }
 
       return user;
+    } catch (error) {
+      throw new ApiError(500, error?.message || "Something went wrong", error);
+    }
+  }
+
+  async updateProfileImage(userId, fileData) {
+    try {
+      const user = await User.findById(userId);
+
+      if (!user) {
+        throw new ApiError(404, "User not found");
+      }
+
+      // Delete old profile image if exists
+      if (user.profileImage?.url) {
+        const oldImagePath = path.join(
+          process.cwd(),
+          "public",
+          user.profileImage.url
+        );
+        deleteFile(oldImagePath);
+      }
+
+      // Set new profile image with full file details
+      user.profileImage = {
+        name: fileData.originalname,
+        url: fileData.url,
+        size: fileData.size,
+        mimeType: fileData.mimetype,
+      };
+
+      // Save with validateModifiedOnly to avoid validating unchanged fields
+      await user.save({ validateModifiedOnly: true });
+
+      return user;
+    } catch (error) {
+      throw new ApiError(500, error?.message || "Something went wrong", error);
+    }
+  }
+
+  async deleteProfileImage(userId) {
+    try {
+      const user = await User.findById(userId);
+
+      if (!user) {
+        throw new ApiError(404, "User not found");
+      }
+
+      if (!user.profileImage) {
+        throw new ApiError(404, "No profile image found");
+      }
+
+      // Delete profile image file
+      // user.profileImage is object with url
+      // We need to get the full path from project root
+      const imagePath = path.join(
+        process.cwd(),
+        "public",
+        user.profileImage.url
+      );
+
+      console.log("Attempting to delete:", imagePath);
+      const deleted = deleteFile(imagePath);
+
+      if (!deleted) {
+        console.warn("Failed to delete file, but continuing with DB update");
+      }
+
+      user.profileImage = null;
+      await user.save();
+
+      return { message: "Profile image deleted successfully" };
+    } catch (error) {
+      throw new ApiError(500, error?.message || "Something went wrong", error);
+    }
+  }
+
+  async uploadDocuments(userId, documents) {
+    try {
+      const user = await User.findById(userId);
+
+      if (!user) {
+        throw new ApiError(404, "User not found");
+      }
+
+      user.documents = [
+        ...user.documents,
+        ...documents.map((file) => ({
+          name: file.originalname,
+          url: file.url,
+          size: file.size,
+          mimeType: file.mimetype,
+        })),
+      ];
+      await user.save();
+
+      return user;
+    } catch (error) {
+      throw new ApiError(500, error?.message || "Something went wrong", error);
+    }
+  }
+
+  async deleteDocument(userId, documentPath) {
+    try {
+      const user = await User.findById(userId);
+      if (!user) throw new ApiError(404, "User not found");
+
+      const docsToDelete = Array.isArray(documentPath)
+        ? documentPath
+        : [documentPath];
+
+      // Validate all docs exist
+      const existingUrls = user.documents.map((doc) => doc.url);
+      if (!docsToDelete.every((doc) => existingUrls.includes(doc)))
+        throw new ApiError(404, "Document not found");
+
+      // Remove documents from array
+      user.documents = user.documents.filter(
+        (doc) => !docsToDelete.includes(doc.url)
+      );
+
+      // Build file paths
+      const filePaths = docsToDelete.map((doc) =>
+        path.join(process.cwd(), "public", doc)
+      );
+
+      // Delete files
+      deleteFiles(filePaths);
+
+      await user.save();
     } catch (error) {
       throw new ApiError(500, error?.message || "Something went wrong", error);
     }

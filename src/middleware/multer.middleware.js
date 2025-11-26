@@ -1,47 +1,38 @@
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { fileURLToPath } from "url";
 import ApiError from "#src/utils/ApiError.js";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { FILE_TYPES } from "#src/utils/constants.js";
 
 // Create uploads directory if it doesn't exist
-const uploadsDir = path.join(__dirname, "../../public/uploads");
-const createUploadDirectories = () => {
-  const dirs = [
-    uploadsDir,
-    path.join(uploadsDir, "profiles"),
-    path.join(uploadsDir, "documents"),
-    path.join(uploadsDir, "images"),
-    path.join(uploadsDir, "others"),
-  ];
-
-  dirs.forEach((dir) => {
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-  });
-};
-
-createUploadDirectories();
+const uploadsDir = path.join(process.cwd(), "public/uploads");
 
 // Storage configuration
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     let uploadPath = uploadsDir;
 
-    // Determine upload path based on fieldname
-    if (file.fieldname === "profileImage" || file.fieldname === "avatar") {
-      uploadPath = path.join(uploadsDir, "profiles");
+    // Determine upload path based on file type
+    const mimetype = file.mimetype;
+
+    if (mimetype.startsWith("image/")) {
+      uploadPath = path.join(
+        uploadsDir,
+        file.fieldname === "profileImage" || file.fieldname === "avatar"
+          ? "profiles"
+          : "images"
+      );
+    } else if (mimetype.startsWith("video/")) {
+      uploadPath = path.join(uploadsDir, "videos");
     } else if (
-      file.fieldname === "document" ||
-      file.fieldname === "documents"
+      mimetype.includes("pdf") ||
+      mimetype.includes("document") ||
+      mimetype.includes("sheet") ||
+      mimetype.includes("msword") ||
+      mimetype.includes("ms-excel") ||
+      mimetype.includes("text")
     ) {
       uploadPath = path.join(uploadsDir, "documents");
-    } else if (file.fieldname === "image" || file.fieldname === "images") {
-      uploadPath = path.join(uploadsDir, "images");
     } else {
       uploadPath = path.join(uploadsDir, "others");
     }
@@ -59,135 +50,117 @@ const storage = multer.diskStorage({
   },
 });
 
-// File filter
-const fileFilter = (req, file, cb) => {
-  // Allowed file types
-  const allowedImageTypes = /jpeg|jpg|png|gif|webp/;
-  const allowedDocTypes = /pdf|doc|docx|xls|xlsx|txt/;
-  const allowedVideoTypes = /mp4|avi|mov|wmv/;
+// Create file filter based on type
+const createFileFilter = (fileType = "ALL") => {
+  return (req, file, cb) => {
+    const typeConfig = FILE_TYPES[fileType.toUpperCase()];
 
-  const extname = path.extname(file.originalname).toLowerCase().slice(1);
-  const mimetype = file.mimetype;
+    if (!typeConfig) {
+      return cb(
+        new ApiError(400, `Invalid file type configuration: ${fileType}`),
+        false
+      );
+    }
 
-  // Check file type based on mimetype and extension
-  const isImage =
-    allowedImageTypes.test(extname) && mimetype.startsWith("image/");
-  const isDoc = allowedDocTypes.test(extname);
-  const isVideo =
-    allowedVideoTypes.test(extname) && mimetype.startsWith("video/");
+    const extname = path.extname(file.originalname).toLowerCase().slice(1);
+    const mimetype = file.mimetype;
 
-  if (isImage || isDoc || isVideo) {
-    cb(null, true);
-  } else {
-    cb(
-      new ApiError(
-        400,
-        `Invalid file type. Allowed types: images (${allowedImageTypes.source}), documents (${allowedDocTypes.source}), videos (${allowedVideoTypes.source})`
-      ),
-      false
-    );
-  }
-};
+    // Check extension
+    const validExtension = typeConfig.extensions.test(extname);
 
-// Multer configuration
-const upload = multer({
-  storage: storage,
-  fileFilter: fileFilter,
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB max file size
-  },
-});
+    // Check mimetype (if specific mimetypes defined)
+    const validMimetype =
+      typeConfig.mimetypes.length === 0 ||
+      typeConfig.mimetypes.includes(mimetype);
 
-// Middleware for single file upload
-export const uploadSingle = (fieldName = "file") => {
-  return (req, res, next) => {
-    const singleUpload = upload.single(fieldName);
-
-    singleUpload(req, res, (err) => {
-      if (err instanceof multer.MulterError) {
-        if (err.code === "LIMIT_FILE_SIZE") {
-          return next(new ApiError(400, "File size should not exceed 10MB"));
-        }
-        return next(new ApiError(400, `Upload error: ${err.message}`));
-      } else if (err) {
-        return next(err);
-      }
-
-      // Add file path to request
-      if (req.file) {
-        req.file.path = req.file.path.replace(/\\/g, "/");
-        req.file.url = `/uploads/${path
-          .relative(uploadsDir, req.file.path)
-          .replace(/\\/g, "/")}`;
-      }
-
-      next();
-    });
+    if (validExtension && validMimetype) {
+      cb(null, true);
+    } else {
+      cb(new ApiError(400, typeConfig.errorMessage), false);
+    }
   };
 };
 
-// Middleware for multiple files upload (same field)
-export const uploadMultiple = (fieldName = "files", maxCount = 5) => {
-  return (req, res, next) => {
-    const multipleUpload = upload.array(fieldName, maxCount);
+// Create multer instance with specific file type
+const createUploadInstance = (fileType = "ALL") => {
+  const typeConfig = FILE_TYPES[fileType.toUpperCase()];
 
-    multipleUpload(req, res, (err) => {
-      if (err instanceof multer.MulterError) {
-        if (err.code === "LIMIT_FILE_SIZE") {
-          return next(new ApiError(400, "File size should not exceed 10MB"));
-        }
-        if (err.code === "LIMIT_UNEXPECTED_FILE") {
-          return next(
-            new ApiError(400, `Too many files. Maximum allowed: ${maxCount}`)
-          );
-        }
-        return next(new ApiError(400, `Upload error: ${err.message}`));
-      } else if (err) {
-        return next(err);
-      }
-
-      // Add file paths to request
-      if (req.files && req.files.length > 0) {
-        req.files = req.files.map((file) => {
-          file.path = file.path.replace(/\\/g, "/");
-          file.url = `/uploads/${path
-            .relative(uploadsDir, file.path)
-            .replace(/\\/g, "/")}`;
-          return file;
-        });
-      }
-
-      next();
-    });
-  };
+  return multer({
+    storage: storage,
+    fileFilter: createFileFilter(fileType),
+    limits: {
+      fileSize: typeConfig ? typeConfig.maxSize : 50 * 1024 * 1024,
+    },
+  });
 };
 
-// Middleware for multiple fields upload
-export const uploadFields = (fields) => {
+// Middleware for mixed fields with different file types
+export const uploadMixedFields = (fieldsConfig) => {
+  /*
+    fieldsConfig format:
+    [
+      { name: "profileImage", maxCount: 1, fileType: "IMAGE" },
+      { name: "documents", maxCount: 5, fileType: "DOCUMENT" },
+      { name: "videos", maxCount: 3, fileType: "VIDEO" }
+    ]
+  */
   return (req, res, next) => {
+    // For mixed types, we'll use ALL and validate individually
+    const upload = createUploadInstance("ALL");
+    const fields = fieldsConfig.map(({ name, maxCount }) => ({
+      name,
+      maxCount,
+    }));
     const fieldsUpload = upload.fields(fields);
 
     fieldsUpload(req, res, (err) => {
       if (err instanceof multer.MulterError) {
         if (err.code === "LIMIT_FILE_SIZE") {
-          return next(new ApiError(400, "File size should not exceed 10MB"));
+          return next(new ApiError(400, "File size exceeded the limit"));
         }
         return next(new ApiError(400, `Upload error: ${err.message}`));
       } else if (err) {
         return next(err);
       }
 
-      // Add file paths to request
+      // Validate each field's file type
       if (req.files) {
-        Object.keys(req.files).forEach((fieldName) => {
-          req.files[fieldName] = req.files[fieldName].map((file) => {
-            file.path = file.path.replace(/\\/g, "/");
-            file.url = `/uploads/${path
-              .relative(uploadsDir, file.path)
-              .replace(/\\/g, "/")}`;
-            return file;
-          });
-        });
+        for (const fieldConfig of fieldsConfig) {
+          const files = req.files[fieldConfig.name];
+          if (files && files.length > 0) {
+            const typeConfig = FILE_TYPES[fieldConfig.fileType.toUpperCase()];
+
+            for (const file of files) {
+              const ext = path
+                .extname(file.originalname)
+                .toLowerCase()
+                .slice(1);
+              const validExt = typeConfig.extensions.test(ext);
+              const validMime =
+                typeConfig.mimetypes.length === 0 ||
+                typeConfig.mimetypes.includes(file.mimetype);
+
+              if (!validExt || !validMime) {
+                // Delete uploaded files
+                files.forEach(
+                  (f) => fs.existsSync(f.path) && fs.unlinkSync(f.path)
+                );
+                return next(
+                  new ApiError(
+                    400,
+                    `${fieldConfig.name}: ${typeConfig.errorMessage}`
+                  )
+                );
+              }
+
+              // Add URL
+              file.path = file.path.replace(/\\/g, "/");
+              file.url = `/uploads/${path
+                .relative(uploadsDir, file.path)
+                .replace(/\\/g, "/")}`;
+            }
+          }
+        }
       }
 
       next();
@@ -200,8 +173,10 @@ export const deleteFile = (filePath) => {
   try {
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
+      console.log("File deleted successfully:", filePath);
       return true;
     }
+    console.warn("File not found:", filePath);
     return false;
   } catch (error) {
     console.error("Error deleting file:", error);
@@ -214,3 +189,131 @@ export const deleteFiles = (filePaths) => {
   const results = filePaths.map((filePath) => deleteFile(filePath));
   return results.every((result) => result === true);
 };
+
+// // Middleware for single file upload
+// export const uploadSingle = (fieldName = "file", fileType = "ALL") => {
+//   return (req, res, next) => {
+//     const upload = createUploadInstance(fileType);
+//     const singleUpload = upload.single(fieldName);
+
+//     singleUpload(req, res, (err) => {
+//       if (err instanceof multer.MulterError) {
+//         if (err.code === "LIMIT_FILE_SIZE") {
+//           const typeConfig = FILE_TYPES[fileType.toUpperCase()];
+//           const maxSizeMB = typeConfig
+//             ? (typeConfig.maxSize / (1024 * 1024)).toFixed(0)
+//             : 50;
+//           return next(
+//             new ApiError(400, `File size should not exceed ${maxSizeMB}MB`)
+//           );
+//         }
+//         return next(new ApiError(400, `Upload error: ${err.message}`));
+//       } else if (err) {
+//         return next(err);
+//       }
+
+//       // Add file path to request
+//       if (req.file) {
+//         req.file.path = req.file.path.replace(/\\/g, "/");
+//         req.file.url = `/uploads/${path
+//           .relative(uploadsDir, req.file.path)
+//           .replace(/\\/g, "/")}`;
+//       }
+
+//       next();
+//     });
+//   };
+// };
+
+// // Middleware for multiple files upload (same field)
+// export const uploadMultiple = (
+//   fieldName = "files",
+//   maxCount = 5,
+//   fileType = "ALL"
+// ) => {
+//   return (req, res, next) => {
+//     const upload = createUploadInstance(fileType);
+//     const multipleUpload = upload.array(fieldName, maxCount);
+
+//     multipleUpload(req, res, (err) => {
+//       if (err instanceof multer.MulterError) {
+//         if (err.code === "LIMIT_FILE_SIZE") {
+//           const typeConfig = FILE_TYPES[fileType.toUpperCase()];
+//           const maxSizeMB = typeConfig
+//             ? (typeConfig.maxSize / (1024 * 1024)).toFixed(0)
+//             : 50;
+//           return next(
+//             new ApiError(
+//               400,
+//               `File size should not exceed ${maxSizeMB}MB per file`
+//             )
+//           );
+//         }
+//         if (err.code === "LIMIT_UNEXPECTED_FILE") {
+//           return next(
+//             new ApiError(400, `Too many files. Maximum allowed: ${maxCount}`)
+//           );
+//         }
+//         return next(new ApiError(400, `Upload error: ${err.message}`));
+//       } else if (err) {
+//         return next(err);
+//       }
+
+//       // Add file paths to request
+//       if (req.files && req.files.length > 0) {
+//         req.files = req.files.map((file) => {
+//           file.path = file.path.replace(/\\/g, "/");
+//           file.url = `/uploads/${path
+//             .relative(uploadsDir, file.path)
+//             .replace(/\\/g, "/")}`;
+//           return file;
+//         });
+//       }
+
+//       next();
+//     });
+//   };
+// };
+
+// // Middleware for multiple fields upload
+// export const uploadFields = (fields, fileType = "ALL") => {
+//   return (req, res, next) => {
+//     const upload = createUploadInstance(fileType);
+//     const fieldsUpload = upload.fields(fields);
+
+//     fieldsUpload(req, res, (err) => {
+//       if (err instanceof multer.MulterError) {
+//         if (err.code === "LIMIT_FILE_SIZE") {
+//           const typeConfig = FILE_TYPES[fileType.toUpperCase()];
+//           const maxSizeMB = typeConfig
+//             ? (typeConfig.maxSize / (1024 * 1024)).toFixed(0)
+//             : 50;
+//           return next(
+//             new ApiError(
+//               400,
+//               `File size should not exceed ${maxSizeMB}MB per file`
+//             )
+//           );
+//         }
+//         return next(new ApiError(400, `Upload error: ${err.message}`));
+//       } else if (err) {
+//         return next(err);
+//       }
+
+//       // Add file paths to request
+//       if (req.files) {
+//         Object.keys(req.files).forEach((fieldName) => {
+//           req.files[fieldName] = req.files[fieldName].map((file) => {
+//             file.path = file.path.replace(/\\/g, "/");
+//             file.url = `/uploads/${path
+//               .relative(uploadsDir, file.path)
+//               .replace(/\\/g, "/")}`;
+//             return file;
+//           });
+//         });
+//       }
+
+//       next();
+//     });
+//   };
+// };

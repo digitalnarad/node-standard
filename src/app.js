@@ -2,6 +2,8 @@ import express from "express";
 import cors from "cors";
 import morgan from "morgan";
 import helmet from "helmet";
+import path from "path";
+import { fileURLToPath } from "url";
 import {
   errorHandler,
   notFoundHandler,
@@ -13,8 +15,15 @@ import { sanitizeInput } from "./middleware/sanitizer.middleware.js";
 const app = express();
 
 // security headers
-app.use(helmet());
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  })
+);
 app.use(cors({ origin: "*" }));
+
+// Serve static files from public directory
+app.use("/uploads", express.static(path.join(process.cwd(), "public/uploads")));
 
 // body parser
 app.use(express.json());

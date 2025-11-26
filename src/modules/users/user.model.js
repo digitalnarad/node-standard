@@ -1,6 +1,30 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 
+const fileSchema = (is_id = true) => {
+  return new mongoose.Schema(
+    {
+      name: {
+        type: String,
+      },
+      url: {
+        type: String,
+      },
+      size: {
+        type: Number,
+      },
+      mimeType: {
+        type: String,
+      },
+    },
+    {
+      _id: is_id,
+      timestamps: false,
+      versionKey: false,
+    }
+  );
+};
+
 const userSchema = new mongoose.Schema(
   {
     firstName: {
@@ -30,7 +54,15 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [true, "Password is required"],
       minlength: [8, "Password must be at least 8 characters"],
-      select: false, // Don't return password in queries by default
+      select: false, // Exclude password from queries by default
+    },
+    profileImage: {
+      type: fileSchema(false),
+      default: null,
+    },
+    documents: {
+      type: [fileSchema(true)],
+      default: [],
     },
     role: {
       type: String,
@@ -56,7 +88,7 @@ const userSchema = new mongoose.Schema(
     ],
   },
   {
-    timestamps: true, // Adds createdAt and updatedAt
+    timestamps: true,
     versionKey: false,
     toJSON: {
       virtuals: true,
@@ -73,9 +105,6 @@ const userSchema = new mongoose.Schema(
 userSchema.virtual("fullName").get(function () {
   return `${this.firstName} ${this.lastName}`;
 });
-
-// Indexes for text search
-userSchema.index({ firstName: "text", lastName: "text", email: "text" });
 
 // Indexes for better performance
 userSchema.index({ status: 1, role: 1 });

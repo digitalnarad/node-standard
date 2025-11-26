@@ -1,6 +1,7 @@
 import app from "./app.js";
 import { config } from "dotenv";
 import database from "./config/database.js";
+import "./utils/UploadDirectories.js";
 
 // self start express engine
 (async () => {

@@ -53,3 +53,53 @@ export const getProfile = asyncHandler(async (req, res) => {
 
   return API_RESPONSE.SUCCESS(res, 200, "Profile fetched successfully", user);
 });
+
+export const uploadProfileImage = asyncHandler(async (req, res) => {
+  if (!req.files?.profileImage?.[0]) {
+    return API_RESPONSE.ERROR(res, 400, "No file uploaded");
+  }
+
+  const user = await userService.updateProfileImage(
+    req.user._id,
+    req.files.profileImage[0]
+  );
+
+  return API_RESPONSE.SUCCESS(
+    res,
+    200,
+    "Profile image uploaded successfully",
+    user
+  );
+});
+
+export const deleteProfileImage = asyncHandler(async (req, res) => {
+  await userService.deleteProfileImage(req.user._id);
+
+  return API_RESPONSE.SUCCESS(res, 200, "Profile image deleted successfully");
+});
+
+export const uploadDocuments = asyncHandler(async (req, res) => {
+  if (!req.files?.documents || req.files.documents.length <= 0) {
+    return API_RESPONSE.ERROR(res, 400, "No file uploaded");
+  }
+
+  const user = await userService.uploadDocuments(
+    req.user._id,
+    req.files.documents
+  );
+
+  return API_RESPONSE.SUCCESS(
+    res,
+    200,
+    "Documents uploaded successfully",
+    user
+  );
+});
+
+export const deleteDocument = asyncHandler(async (req, res) => {
+  const { documentPath } = req.body;
+
+  await userService.deleteDocument(req.user._id, documentPath);
+
+  return API_RESPONSE.SUCCESS(res, 200, "Document deleted successfully");
+});

@@ -16,8 +16,10 @@ export const registerValidation = Joi.object({
   phone: Joi.string()
     .pattern(/^\+?[\d\s-()]+$/)
     .optional()
+    .min(10)
     .messages({
       "string.pattern.base": "Invalid phone number format",
+      "string.min": "Phone number must be at least 10 digits long",
     }),
   role: Joi.string().valid("user", "admin", "manager").optional().messages({
     "any.only": "Invalid role value",
