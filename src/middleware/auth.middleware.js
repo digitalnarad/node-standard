@@ -11,6 +11,15 @@ export const authenticate = asyncHandler(async (req, res, next) => {
   }
 
   const decoded = jwt.verify(token, process.env.JWT_TOKEN_SECRET);
+  const refreshTokenDecoded = jwt.verify(
+    decoded.refreshToken,
+    process.env.REFRESH_TOKEN_SECRET
+  );
+
+  if (!refreshTokenDecoded.userId || !decoded.userId) {
+    throw new ApiError(401, "Invalid token");
+  }
+
   const user = await User.findById(decoded.userId);
 
   if (!user) {
@@ -26,6 +35,7 @@ export const authenticate = asyncHandler(async (req, res, next) => {
   }
 
   req.user = user;
+  req.refreshToken = decoded.refreshToken;
 
   next();
 });

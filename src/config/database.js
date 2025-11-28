@@ -22,9 +22,7 @@ class Database {
         options
       );
 
-      console.log(
-        `✅ MongoDB Connected: ${this.connection.connection.readyState}`
-      );
+      console.log(`✅ MongoDB Connected: ${this.isConnected()}`);
       console.log(`📊 Database: ${this.connection.connection.name}`);
 
       // Connection event listeners

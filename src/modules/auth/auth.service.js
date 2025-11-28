@@ -83,25 +83,6 @@ class AuthService {
     };
   }
 
-  async logout(userId, refreshToken) {
-    if (!refreshToken) {
-      throw new ApiError(400, "Refresh token is required");
-    }
-
-    const user = await User.findById(userId);
-
-    if (!user) {
-      throw new ApiError(400, "User not found");
-    }
-
-    user.refreshTokens = user.refreshTokens.filter(
-      (t) => t.token !== refreshToken
-    );
-    await user.save();
-
-    return { message: "Logged out successfully" };
-  }
-
   async refreshAccessToken(refreshToken) {
     const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
 
@@ -122,26 +103,6 @@ class AuthService {
     const newAccessToken = this.generateAccessToken(user._id, refreshToken);
 
     return { accessToken: newAccessToken };
-  }
-
-  async changePassword(userId, currentPassword, newPassword) {
-    const user = await User.findById(userId).select("+password");
-
-    if (!user) {
-      throw new ApiError(404, "User not found");
-    }
-
-    const isPasswordValid = await user.comparePassword(currentPassword);
-
-    if (!isPasswordValid) {
-      throw new ApiError(401, "Current password is incorrect");
-    }
-
-    user.password = newPassword;
-    user.refreshTokens = []; // Clear all refresh tokens
-    await user.save();
-
-    return { message: "Password changed successfully" };
   }
 }
 

@@ -1,6 +1,9 @@
 import express from "express";
 import * as userController from "./user.controller.js";
-import { updateUserValidation } from "./user.validation.js";
+import {
+  changePasswordValidation,
+  updateUserValidation,
+} from "./user.validation.js";
 import { validate } from "#src/middleware/validate.middleware.js";
 import { authenticate, authorize } from "#src/middleware/auth.middleware.js";
 import {
@@ -24,7 +27,6 @@ router.patch(
 // Profile image routes
 router.post(
   "/upload-profile-image",
-  // uploadSingle("profileImage", "IMAGE"),
   uploadMixedFields([
     {
       name: "profileImage",
@@ -37,7 +39,6 @@ router.post(
 
 router.post(
   "/upload-documents",
-  // uploadMultiple("documents", 5, "DOCUMENT"),
   uploadMixedFields([
     {
       name: "documents",
@@ -51,12 +52,14 @@ router.post(
 router.delete("/delete-profile-image", userController.deleteProfileImage);
 router.delete("/delete-document", userController.deleteDocument);
 
-// Admin only routes
-router.use(authorize("admin"));
+router.delete("/delete-profile", userController.deleteAccount);
 
-router.get("/all", userController.getAllUsers);
-router.get("/by-id/:id", userController.getUser);
-router.delete("/delete/:id", userController.deleteUser);
-router.patch("/:id/status", userController.changeStatus);
+router.post("/logout", userController.logout);
+
+router.post(
+  "/change-password",
+  validate(changePasswordValidation),
+  userController.changePassword
+);
 
 export default router;

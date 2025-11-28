@@ -2,18 +2,6 @@ import userService from "./user.service.js";
 import { asyncHandler } from "#src/utils/asyncHandler.js";
 import { API_RESPONSE } from "#src/utils/ApiResponse.js";
 
-export const getUser = asyncHandler(async (req, res) => {
-  const user = await userService.getUserById(req.params.id);
-
-  return API_RESPONSE.SUCCESS(res, 200, "User fetched successfully", user);
-});
-
-export const getAllUsers = asyncHandler(async (req, res) => {
-  const result = await userService.getAllUsers(req.query);
-
-  return API_RESPONSE.SUCCESS(res, 200, "Users fetched successfully", result);
-});
-
 export const updateUser = asyncHandler(async (req, res) => {
   const body = req.body;
 
@@ -27,24 +15,10 @@ export const updateUser = asyncHandler(async (req, res) => {
   return API_RESPONSE.SUCCESS(res, 200, "User updated successfully", user);
 });
 
-export const deleteUser = asyncHandler(async (req, res) => {
-  await userService.deleteUser(req.params.id);
+export const deleteAccount = asyncHandler(async (req, res) => {
+  await userService.deleteUser(req.user._id);
 
-  return API_RESPONSE.SUCCESS(res, 200, "User deleted successfully");
-});
-
-export const changeStatus = asyncHandler(async (req, res) => {
-  const user = await userService.changeUserStatus(
-    req.params.id,
-    req.body.status
-  );
-
-  return API_RESPONSE.SUCCESS(
-    res,
-    200,
-    "User status updated successfully",
-    user
-  );
+  return API_RESPONSE.SUCCESS(res, 200, "Account deleted successfully");
 });
 
 export const getProfile = asyncHandler(async (req, res) => {
@@ -106,4 +80,17 @@ export const deleteDocument = asyncHandler(async (req, res) => {
   await userService.deleteDocument(req.user._id, documentIds);
 
   return API_RESPONSE.SUCCESS(res, 200, "Document deleted successfully");
+});
+
+export const logout = asyncHandler(async (req, res) => {
+  await userService.logout(req.user._id, req.refreshToken);
+
+  return API_RESPONSE.SUCCESS(res, 200, "Logout successful");
+});
+
+export const changePassword = asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  await userService.changePassword(req.user._id, currentPassword, newPassword);
+
+  return API_RESPONSE.SUCCESS(res, 200, "Password changed successfully");
 });

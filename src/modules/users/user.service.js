@@ -1,8 +1,7 @@
 import ApiError from "#src/utils/ApiError.js";
 import User from "./user.model.js";
 import path from "path";
-import { fileURLToPath } from "url";
-import { deleteFile, deleteFiles } from "#src/middleware/multer.middleware.js";
+import { deleteFile } from "#src/middleware/multer.middleware.js";
 
 class UserService {
   async createUser(userData) {
@@ -14,51 +13,6 @@ class UserService {
 
     const user = await User.create(userData);
     return user;
-  }
-
-  async getUserById(userId) {
-    const user = await User.findById(userId);
-
-    if (!user) {
-      throw new ApiError(404, "User not found");
-    }
-
-    return user;
-  }
-
-  async getAllUsers(filters = {}) {
-    const { page = 1, limit = 10, status, role, search } = filters;
-
-    const query = {};
-
-    if (status) query.status = status;
-    if (role) query.role = role;
-
-    if (search) {
-      const searchRegex = new RegExp(search, "i"); // 'i' for case-insensitive
-      query.$or = [
-        { firstName: searchRegex },
-        { lastName: searchRegex },
-        { email: searchRegex },
-      ];
-    }
-
-    const skip = (Number(page) - 1) * Number(limit);
-
-    const [users, total] = await Promise.all([
-      User.find(query).limit(Number(limit)).skip(skip).sort({ createdAt: -1 }),
-      User.countDocuments(query),
-    ]);
-
-    return {
-      users,
-      pagination: {
-        page: Number(page),
-        limit: Number(limit),
-        total,
-        totalPages: Math.ceil(total / limit), // Math.ceil() to maximum round up
-      },
-    };
   }
 
   async updateUser(userId, updateData) {
@@ -96,27 +50,13 @@ class UserService {
     }
 
     if (user.documents && user.documents?.length > 0) {
-      const documentsPath = user.documents.map((document) =>
-        path.join(process.cwd(), "public", document.url)
+      user.documents.map((document) =>
+        deleteFile(path.join(process.cwd(), "public", document.url))
       );
-      deleteFiles(documentsPath);
     }
 
     await user.deleteOne();
     return { message: "User deleted successfully" };
-  }
-
-  async changeUserStatus(userId, status) {
-    const user = await User.findById(userId);
-
-    if (!user) {
-      throw new ApiError(404, "User not found");
-    }
-
-    user.status = status;
-    await user.save();
-
-    return user;
   }
 
   async getProfile(userId) {
@@ -230,6 +170,45 @@ class UserService {
     });
 
     await user.save();
+  }
+
+  async logout(userId, refreshToken) {
+    if (!refreshToken) {
+      throw new ApiError(400, "Refresh token is required");
+    }
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      throw new ApiError(400, "User not found");
+    }
+
+    user.refreshTokens = user.refreshTokens.filter(
+      (t) => t.token !== refreshToken
+    );
+    await user.save();
+
+    return { message: "Logged out successfully" };
+  }
+
+  async changePassword(userId, currentPassword, newPassword) {
+    const user = await User.findById(userId).select("+password");
+
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+
+    const isPasswordValid = await user.comparePassword(currentPassword);
+
+    if (!isPasswordValid) {
+      throw new ApiError(401, "Current password is incorrect");
+    }
+
+    user.password = newPassword;
+    user.refreshTokens = []; // Clear all refresh tokens
+    await user.save();
+
+    return { message: "Password changed successfully" };
   }
 }
 

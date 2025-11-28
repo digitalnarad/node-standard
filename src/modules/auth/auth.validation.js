@@ -30,15 +30,3 @@ export const loginValidation = Joi.object({
   email: Joi.string().email().required(),
   password: Joi.string().required(),
 });
-
-export const changePasswordValidation = Joi.object({
-  currentPassword: Joi.string().required(),
-  newPassword: Joi.string()
-    .min(8)
-    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .required()
-    .messages({
-      "string.pattern.base":
-        "Password must contain at least one lowercase letter, one uppercase letter, and one digit",
-    }),
-});

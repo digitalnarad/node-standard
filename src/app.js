@@ -8,8 +8,7 @@ import {
   notFoundHandler,
 } from "./middleware/error.middleware.js";
 import appRouter from "./router.js";
-import { API_RESPONSE } from "./utils/ApiResponse.js";
-import mongoSanitize from "express-mongo-sanitize";
+import { sanitizeInput } from "./middleware/sanitizer.middleware.js";
 
 const app = express();
 
@@ -21,15 +20,15 @@ app.use(
 );
 app.use(cors({ origin: "*" }));
 
-// sanitize input
-app.use(mongoSanitize());
-
 // Serve static files from public directory
 app.use("/uploads", express.static(path.join(process.cwd(), "public/uploads")));
 
 // body parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// sanitize input
+app.use(sanitizeInput);
 
 // logging requests
 app.use(morgan("dev"));
