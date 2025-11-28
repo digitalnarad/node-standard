@@ -4,6 +4,7 @@ import User from "../users/user.model.js";
 
 class AuthService {
   generateAccessToken(userId, refreshToken) {
+    console.log("process.env.JWT_TOKEN_SECRET", process.env.JWT_TOKEN_SECRET);
     return jwt.sign({ userId, refreshToken }, process.env.JWT_TOKEN_SECRET, {
       expiresIn: process.env.JWT_TOKEN_EXPIRES_IN,
     });

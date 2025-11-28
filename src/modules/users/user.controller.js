@@ -22,7 +22,6 @@ export const deleteAccount = asyncHandler(async (req, res) => {
 });
 
 export const getProfile = asyncHandler(async (req, res) => {
-  console.log("req.user._id", req.user._id);
   const user = await userService.getProfile(req.user._id);
 
   return API_RESPONSE.SUCCESS(res, 200, "Profile fetched successfully", user);

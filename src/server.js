@@ -1,14 +1,10 @@
-import app from "./app.js";
-import { config } from "dotenv";
 import database from "./config/database.js";
 import "./utils/UploadDirectories.js";
+import app from "./app.js";
 
 // self start express engine
 (async () => {
   try {
-    // load environment variables
-    config();
-
     // connect to database
     await database.connect();
 

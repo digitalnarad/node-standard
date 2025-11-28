@@ -1,0 +1,232 @@
+openapi: 3.0.0
+info:
+  title: node-standard
+  version: 1.0.0
+servers:
+  - url: http://localhost:8001
+tags:
+  - name: auth
+  - name: users
+  - name: admin
+paths:
+  /api/auth/login:
+    post:
+      tags:
+        - auth
+      summary: Login
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              example:
+                email: user@gmail.com
+                password: User@123
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json: {}
+  /api/auth/access-token:
+    post:
+      tags:
+        - auth
+      summary: Access Token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              example:
+                refreshToken: >-
+                  eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTIwYzllNGM3MzllZTM1OTk0NzQ4MDIiLCJpYXQiOjE3NjM3NTY1MTYsImV4cCI6MTc2NjM0ODUxNn0.nj_hN8yrpAk2YZrO71kh8bQHWgiYCaHw0ygM0Ih1xyg
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json: {}
+  /api/auth/register:
+    post:
+      tags:
+        - auth
+      summary: Register
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              example:
+                firstName: Test
+                lastName: User
+                email: user@gmail.com
+                password: User@123
+                phone: +91 6358745441
+                role: user
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json: {}
+  /api/users/update-profile/6929d5b4ca5368604e02c9d5:
+    patch:
+      tags:
+        - users
+      summary: Update Profile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              example:
+                firstName: krupesh
+                lastName: pansara 1
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json: {}
+  /api/users/logout:
+    post:
+      tags:
+        - users
+      summary: Logout
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              example: ""
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json: {}
+  /api/users/change-password:
+    post:
+      tags:
+        - users
+      summary: Change Password
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              example:
+                currentPassword: User@1234
+                newPassword: User@123
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json: {}
+  /api/users/profile:
+    get:
+      tags:
+        - users
+      summary: Profile
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json: {}
+  /api/users/upload-profile-image:
+    post:
+      tags:
+        - users
+      summary: Upload Profile Image
+      requestBody:
+        content: {}
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json: {}
+  /api/users/upload-documents:
+    post:
+      tags:
+        - users
+      summary: Upload Document
+      requestBody:
+        content: {}
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json: {}
+  /api/users/delete-profile-image:
+    delete:
+      tags:
+        - users
+      summary: Delete Profile Image
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json: {}
+  /api/users/delete-document:
+    delete:
+      tags:
+        - users
+      summary: Delete Document
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json: {}
+  /api/users/delete-profile:
+    delete:
+      tags:
+        - users
+      summary: Delete Profile
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json: {}
+  /api/admin/delete/6920d435a4b94af38d507392:
+    delete:
+      tags:
+        - admin
+      summary: Delete User
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json: {}
+  /api/admin/all:
+    get:
+      tags:
+        - admin
+      summary: Fetch All Users
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json: {}
+  /api/admin/by-id/6929d5b4ca5368604e02c9d5:
+    get:
+      tags:
+        - admin
+      summary: Fetch User By Id
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json: {}
+  /api/admin/6929d5b4ca5368604e02c9d5/status:
+    patch:
+      tags:
+        - admin
+      summary: Change Status
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              example:
+                status: active
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json: {}
